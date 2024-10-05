@@ -23,6 +23,7 @@ public class DatabaseSetup {
                 + "    sender TEXT NOT NULL,\n"
                 + "    receiver TEXT NOT NULL,\n"
                 + "    message TEXT,\n"
+                + "    image BLOB,\n"
                 + "    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP\n"
                 + ");";
 

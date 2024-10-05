@@ -1,17 +1,11 @@
 package com.guiyomi;
 
-import javafx.application.Application;
-import javafx.application.Platform;
-import javafx.scene.Scene;
-import javafx.scene.control.*;
-import javafx.scene.image.Image;
-import javafx.scene.image.ImageView;
-import javafx.scene.layout.HBox;
-import javafx.scene.layout.VBox;
-import javafx.stage.FileChooser;
-import javafx.stage.Stage;
-
-import java.io.*;
+import java.io.BufferedReader;
+import java.io.ByteArrayInputStream;
+import java.io.File;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.PrintWriter;
 import java.net.Socket;
 import java.sql.Connection;
 import java.sql.DriverManager;
@@ -26,9 +20,27 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import javafx.application.Application;
+import javafx.application.Platform;
+import javafx.scene.Scene;
+import javafx.scene.control.Alert;
+import javafx.scene.control.Button;
+import javafx.scene.control.Label;
+import javafx.scene.control.ListView;
+import javafx.scene.control.PasswordField;
+import javafx.scene.control.TextArea;
+import javafx.scene.control.TextField;
+import javafx.scene.image.Image;
+import javafx.scene.image.ImageView;
+import javafx.scene.layout.HBox;
+import javafx.scene.layout.VBox;
+import javafx.stage.FileChooser;
+import javafx.stage.Stage;
+
 public class ChatClient extends Application {
     private UserManager userManager = new UserManager();
     private File profilePictureFile;
+    private File attachmentFile;
     private Socket socket;
     private PrintWriter out;
     private BufferedReader in;
@@ -142,6 +154,18 @@ public class ChatClient extends Application {
     
         Button sendButton = new Button("Send");
         sendButton.setOnAction(e -> sendMessage(messageField.getText()));
+
+        Button chooseAttachmentButton = new Button("Choose Attachment");
+        chooseAttachmentButton.setOnAction(e -> {
+            FileChooser fileChooser = new FileChooser();
+            attachmentFile = fileChooser.showOpenDialog(primaryStage);
+            if (attachmentFile != null) {
+                showAlert("Attachment selected: " + attachmentFile.getName());
+            }
+        });
+
+        Button logoutButton = new Button("Logout");
+        logoutButton.setOnAction(e -> handleLogout(primaryStage));
     
         userList = new ListView<>();
         userList.setPrefWidth(150);
@@ -149,27 +173,27 @@ public class ChatClient extends Application {
             selectedUser = newValue;
             loadChatHistory(currentUser, selectedUser); //load chat history upon selection
         });
-    
-        //initialize existingUsers and conversationMap here
+
         existingUsers = new HashSet<>();
         conversationMap = new HashMap<>();
-    
+
         loadUserList();
-    
-        //load all conversations for the current user from the database
+
         preloadAllConversations();
-    
+
         new Thread(this::pollUserList).start();
-        
-        HBox profileBox = new HBox(10, profileImageView, userNameLabel);
+
+        VBox profileSection = new VBox(10, profileImageView, logoutButton);
+        HBox profileBox = new HBox(10, profileSection, userNameLabel);
         HBox chatLayout = new HBox(10, userList, chatArea);
-        VBox mainLayout = new VBox(10, profileBox, chatLayout, messageField, sendButton);
+        HBox buttonBox = new HBox(10, sendButton, chooseAttachmentButton);
+        VBox mainLayout = new VBox(10, profileBox, chatLayout, messageField, buttonBox); 
         Scene chatScene = new Scene(mainLayout, 600, 500);
         primaryStage.setScene(chatScene);
         primaryStage.show();
-    
+
         connectToServer();
-    }
+        }
     
     //method to load the profile picture
     private void loadProfilePicture(String firstName, String lastName) {
@@ -336,6 +360,22 @@ public class ChatClient extends Application {
         //add loaded messages to conversationMap and display them in the chat area
         conversationMap.put(conversationKey, messages);
         messages.forEach(msg -> chatArea.appendText(msg + "\n"));
+    }
+
+    private void handleLogout(Stage primaryStage) {
+        // Perform any necessary cleanup, such as closing the socket connection
+        if (socket != null && !socket.isClosed()) {
+            try {
+                socket.close();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+ 
+        currentUser = null;
+  
+        start(primaryStage);
+        System.out.println("User logged out successfully.");
     }
     
 
