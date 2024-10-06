@@ -166,6 +166,14 @@ public class ChatClient extends Application {
 
         Button logoutButton = new Button("Logout");
         logoutButton.setOnAction(e -> handleLogout(primaryStage));
+
+        TextField searchField = new TextField();
+        searchField.setPromptText("Search contacts...");
+        
+        searchField.textProperty().addListener((observable, oldValue, newValue) -> {
+            searchContact(searchField); 
+            loadUserList();
+        });
     
         userList = new ListView<>();
         userList.setPrefWidth(150);
@@ -183,11 +191,12 @@ public class ChatClient extends Application {
 
         new Thread(this::pollUserList).start();
 
-        VBox profileSection = new VBox(10, profileImageView, logoutButton);
+        VBox profileSection = new VBox(10, profileImageView);
         HBox profileBox = new HBox(10, profileSection, userNameLabel);
+        VBox profile = new VBox(10, profileBox, searchField);
         HBox chatLayout = new HBox(10, userList, chatArea);
-        HBox buttonBox = new HBox(10, sendButton, chooseAttachmentButton);
-        VBox mainLayout = new VBox(10, profileBox, chatLayout, messageField, buttonBox); 
+        HBox buttonBox = new HBox(10, sendButton, chooseAttachmentButton, logoutButton);
+        VBox mainLayout = new VBox(10, profile, chatLayout, messageField, buttonBox); 
         Scene chatScene = new Scene(mainLayout, 600, 500);
         primaryStage.setScene(chatScene);
         primaryStage.show();
@@ -376,6 +385,36 @@ public class ChatClient extends Application {
   
         start(primaryStage);
         System.out.println("User logged out successfully.");
+    }
+
+    private void searchContact(TextField searchField) {
+
+        String searchText = searchField.getText().trim();
+
+        List<String> filteredUsers = new ArrayList<>();
+        String sql = "SELECT first_name, last_name FROM users WHERE first_name LIKE ? OR last_name LIKE ?";
+
+        try (Connection conn = DriverManager.getConnection(DB_URL);
+            PreparedStatement pstmt = conn.prepareStatement(sql))
+
+            {
+                pstmt.setString(1, "%" + searchText + "%");
+                pstmt.setString(2, "%" + searchText + "%");
+
+                ResultSet rs = pstmt.executeQuery();
+                while (rs.next()) {
+                    String user = rs.getString("first_name") + " " + rs.getString("last_name");
+                    if (!user.equals(currentUser)) {
+                        filteredUsers.add(user);
+                    }
+                }
+            }
+
+        catch (SQLException e) {
+            System.out.println("Error searching users: " + e.getMessage());
+        }
+
+        Platform.runLater(() -> userList.getItems().setAll(filteredUsers));
     }
     
 
